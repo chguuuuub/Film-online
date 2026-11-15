@@ -19,7 +19,7 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: 自动初始化并编译 APK
+      - name: 自动初始化项目
         run: |
           mkdir -p app/src/main/java/com/cine/player app/src/main
           
@@ -41,11 +41,11 @@ jobs:
 
           echo "sdk.dir=$ANDROID_HOME" > local.properties
 
-      - name: 使用 Gradle 编译 APK
+      - name: 使用 Gradle 8.4 编译
         uses: gradle/actions/setup-gradle@v3
         with:
           gradle-version: '8.4'
-          arguments: assembleDebug --no-daemon
+          arguments: assembleDebug --no-daemon --stacktrace
 
       - name: 上传 APK
         uses: actions/upload-artifact@v4
