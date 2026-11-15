@@ -5,6 +5,8 @@ import android.os.Bundle
 import android.view.Gravity
 import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
+import android.widget.ArrayAdapter
+import android.widget.AutoCompleteTextView
 import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
@@ -26,7 +28,8 @@ class MainActivity : AppCompatActivity() {
     private var player: ExoPlayer? = null
     private lateinit var playerView: PlayerView
     private lateinit var urlInput: EditText
-    private lateinit var searchInput: EditText
+    private lateinit var searchInput: AutoCompleteTextView
+    private var searchResults: List<Pair<String, String>> = emptyList()
     private lateinit var statusView: TextView
     private lateinit var resultsBox: LinearLayout
     private val executor = Executors.newSingleThreadExecutor()
@@ -56,13 +59,44 @@ class MainActivity : AppCompatActivity() {
         root.addView(header, matchWrap())
 
         root.addView(sectionLabel("片名 / 关键词搜索"), matchWrap())
-        searchInput = makeInput("输入电影名称或关键词")
-        searchInput.inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
-        searchInput.imeOptions = EditorInfo.IME_ACTION_SEARCH
-        root.addView(searchInput, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 58))
+        searchInput = AutoCompleteTextView(this).apply {
+            hint = "输入电影名称或关键词"
+            setSingleLine(true)
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
+            imeOptions = EditorInfo.IME_ACTION_SEARCH
+            threshold = 1
+            textSize = 16f
+            minHeight = 58
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(16, 12, 16, 12)
+            setTextColor(0xFFFFFFFF.toInt())
+            setHintTextColor(0xFF9AA4B2.toInt())
+            setBackgroundColor(0xFF252B34.toInt())
+            setDropDownBackgroundDrawable(android.graphics.drawable.ColorDrawable(0xFF252B34.toInt()))
+            dropDownVerticalOffset = 6
+            dropDownHeight = ViewGroup.LayoutParams.WRAP_CONTENT
+            setOnItemClickListener { _, _, position, _ ->
+                val selected = searchResults.getOrNull(position)
+                if (selected != null) {
+                    setText(selected.first, false)
+                    urlInput.setText(selected.second)
+                    playUrl()
+                }
+            }
+            setOnEditorActionListener { _, actionId, _ ->
+                if (actionId == EditorInfo.IME_ACTION_SEARCH) { searchArchive(); true } else false
+            }
+        }
+        root.addView(searchInput, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 60).apply {
+            topMargin = dp(4)
+            bottomMargin = dp(8)
+        })
         root.addView(Button(this).apply {
-            text = "搜索可播放影片"; setOnClickListener { searchArchive() }
-        }, matchWrap())
+            text = "搜索可播放影片"
+            setOnClickListener { searchArchive() }
+        }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
+            bottomMargin = dp(8)
+        })
 
         resultsBox = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         root.addView(resultsBox, matchWrap())
@@ -76,7 +110,10 @@ class MainActivity : AppCompatActivity() {
         urlInput.setOnEditorActionListener { _, actionId, _ ->
             if (actionId == EditorInfo.IME_ACTION_GO) { playUrl(); true } else false
         }
-        root.addView(urlInput, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 62))
+        root.addView(urlInput, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 62).apply {
+            topMargin = dp(6)
+            bottomMargin = dp(8)
+        })
         root.addView(Button(this).apply {
             text = "播放链接"; setOnClickListener { playUrl() }
         }, matchWrap())
@@ -116,17 +153,17 @@ class MainActivity : AppCompatActivity() {
             try {
                 val playable = findPlayableArchiveItems(query)
                 runOnUiThread {
-                    resultsBox.removeAllViews()
+                    searchResults = playable
                     if (playable.isEmpty()) {
+                        searchInput.setAdapter(ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, emptyList<String>()))
                         statusView.text = "没有找到通过初步链接检测的影片。可换关键词，或直接输入视频链接。"
                     } else {
-                        statusView.text = "找到 " + playable.size + " 个可尝试播放的公开影片，点击条目开始播放。"
-                        playable.forEach { item ->
-                            resultsBox.addView(Button(this).apply {
-                                text = item.first; isAllCaps = false
-                                setOnClickListener { urlInput.setText(item.second); playUrl() }
-                            }, matchWrap())
-                        }
+                        val titles = playable.map { it.first }
+                        searchInput.setAdapter(ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, titles))
+                        searchInput.setText(query, false)
+                        statusView.text = "找到 " + playable.size + " 个可尝试播放的公开影片，点开输入框下方列表即可播放。"
+                        searchInput.requestFocus()
+                        searchInput.showDropDown()
                     }
                 }
             } catch (e: Exception) {
@@ -212,6 +249,8 @@ class MainActivity : AppCompatActivity() {
         }
         exoPlayer.setMediaItem(MediaItem.fromUri(uri)); exoPlayer.prepare(); exoPlayer.playWhenReady = true
     }
+
+    private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
 
     private fun matchWrap() = LinearLayout.LayoutParams(
         ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
