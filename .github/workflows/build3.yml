@@ -22,6 +22,11 @@ jobs:
       - name: 写入 SDK 路径
         run: echo "sdk.dir=$ANDROID_HOME" > local.properties
 
+      - name: 生成 Gradle Wrapper 补偿文件
+        run: |
+          gradle wrapper --gradle-version 8.7
+          chmod +x gradlew
+
       - name: 编译并打包 APK
         run: ./gradlew assembleDebug --no-daemon
 
