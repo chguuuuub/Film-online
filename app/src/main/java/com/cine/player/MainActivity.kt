@@ -50,7 +50,7 @@ class MainActivity : AppCompatActivity() {
 
         urlInput = EditText(this).apply {
             hint = "粘贴视频直链（https://…）"
-            singleLine = true
+            setSingleLine(true)
             inputType = android.text.InputType.TYPE_TEXT_VARIATION_URI
             imeOptions = EditorInfo.IME_ACTION_GO
             setTextColor(0xFFFFFFFF.toInt())
