@@ -19,7 +19,7 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: 自动初始化项目与 Gradle Wrapper
+      - name: 自动初始化并编译 APK
         run: |
           mkdir -p app/src/main/java/com/cine/player app/src/main
           
@@ -40,13 +40,12 @@ jobs:
           echo 'class MainActivity : AppCompatActivity() { override fun onCreate(savedInstanceState: Bundle?) { super.onCreate(savedInstanceState); val pv = PlayerView(this); setContentView(pv); ExoPlayer.Builder(this).build().also { pv.player = it } } }' >> app/src/main/java/com/cine/player/MainActivity.kt
 
           echo "sdk.dir=$ANDROID_HOME" > local.properties
-          
-          # 手动生成 Wrapper 供后续编译使用
-          gradle wrapper --gradle-version 8.4
-          chmod +x gradlew
 
-      - name: 编译打包 APK
-        run: ./gradlew assembleDebug --no-daemon
+      - name: 使用 Gradle 编译 APK
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: '8.4'
+          arguments: assembleDebug --no-daemon
 
       - name: 上传 APK
         uses: actions/upload-artifact@v4
