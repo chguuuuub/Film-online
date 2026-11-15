@@ -2,11 +2,13 @@ package com.cine.player
 
 import android.net.Uri
 import android.os.Bundle
+import android.view.Gravity
 import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
 import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
+import android.widget.ScrollView
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.media3.common.MediaItem
@@ -14,12 +16,20 @@ import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
+import org.json.JSONObject
+import java.net.HttpURLConnection
+import java.net.URLEncoder
+import java.net.URL
+import java.util.concurrent.Executors
 
 class MainActivity : AppCompatActivity() {
     private var player: ExoPlayer? = null
     private lateinit var playerView: PlayerView
     private lateinit var urlInput: EditText
+    private lateinit var searchInput: EditText
     private lateinit var statusView: TextView
+    private lateinit var resultsBox: LinearLayout
+    private val executor = Executors.newSingleThreadExecutor()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -29,119 +39,187 @@ class MainActivity : AppCompatActivity() {
     private fun buildScreen() {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(20, 20, 20, 20)
+            setPadding(18, 16, 18, 12)
             setBackgroundColor(0xFF101318.toInt())
         }
-
+        val header = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+        val brand = TextView(this).apply {
+            text = "G"; textSize = 38f; setTypeface(null, android.graphics.Typeface.BOLD)
+            setTextColor(0xFF65D6AD.toInt()); setPadding(0, 0, 12, 0)
+        }
+        header.addView(brand, LinearLayout.LayoutParams(52, ViewGroup.LayoutParams.WRAP_CONTENT))
         val title = TextView(this).apply {
-            text = "Cine4K 在线播放器"
-            textSize = 24f
+            text = "G 在线影视"; textSize = 23f; setTypeface(null, android.graphics.Typeface.BOLD)
             setTextColor(0xFFFFFFFF.toInt())
         }
-        root.addView(title, matchWrap())
+        header.addView(title, matchWrap())
+        root.addView(header, matchWrap())
 
-        val subtitle = TextView(this).apply {
-            text = "播放你有权访问的 MP4、HLS (.m3u8) 或 DASH (.mpd) 视频地址"
-            textSize = 13f
-            setTextColor(0xFFB8C0CC.toInt())
-            setPadding(0, 8, 0, 14)
-        }
-        root.addView(subtitle, matchWrap())
+        root.addView(sectionLabel("片名 / 关键词搜索"), matchWrap())
+        searchInput = makeInput("输入电影名称或关键词")
+        searchInput.imeOptions = EditorInfo.IME_ACTION_SEARCH
+        root.addView(searchInput, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 58))
+        root.addView(Button(this).apply {
+            text = "搜索可播放影片"; setOnClickListener { searchArchive() }
+        }, matchWrap())
 
-        urlInput = EditText(this).apply {
-            hint = "粘贴视频直链（https://…）"
-            setSingleLine(true)
-            inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_URI
-            imeOptions = EditorInfo.IME_ACTION_GO
-            setTextColor(0xFFFFFFFF.toInt())
-            setHintTextColor(0xFF9AA4B2.toInt())
-            setPadding(16, 14, 16, 14)
-            textSize = 16f
-            minHeight = 64
-            gravity = android.view.Gravity.CENTER_VERTICAL
-            setBackgroundColor(0xFF252B34.toInt())
-            setOnEditorActionListener { _, actionId, _ ->
-                if (actionId == EditorInfo.IME_ACTION_GO) {
-                    playUrl()
-                    true
-                } else false
-            }
-        }
-        root.addView(urlInput, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 68))
+        resultsBox = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        root.addView(resultsBox, matchWrap())
 
-        val playButton = Button(this).apply {
-            text = "播放"
-            setOnClickListener { playUrl() }
+        root.addView(TextView(this).apply {
+            text = "──────────  或输入播放链接  ──────────"; textSize = 12f
+            gravity = Gravity.CENTER; setTextColor(0xFF9AA4B2.toInt()); setPadding(0, 10, 0, 6)
+        }, matchWrap())
+        urlInput = makeInput("粘贴 MP4 / M3U8 / MPD 网络视频链接")
+        urlInput.imeOptions = EditorInfo.IME_ACTION_GO
+        urlInput.setOnEditorActionListener { _, actionId, _ ->
+            if (actionId == EditorInfo.IME_ACTION_GO) { playUrl(); true } else false
         }
-        root.addView(playButton, matchWrap())
+        root.addView(urlInput, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 62))
+        root.addView(Button(this).apply {
+            text = "播放链接"; setOnClickListener { playUrl() }
+        }, matchWrap())
 
         statusView = TextView(this).apply {
-            text = "等待输入视频地址"
-            textSize = 13f
-            setTextColor(0xFFB8C0CC.toInt())
-            setPadding(0, 8, 0, 8)
+            text = "可搜索 Internet Archive 公共影片，也可直接输入网络视频链接。"
+            textSize = 13f; setTextColor(0xFFB8C0CC.toInt()); setPadding(0, 8, 0, 8)
         }
         root.addView(statusView, matchWrap())
-
         playerView = PlayerView(this).apply {
             useController = true
             setShowBuffering(PlayerView.SHOW_BUFFERING_WHEN_PLAYING)
         }
-        root.addView(
-            playerView,
-            LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f)
-        )
-        setContentView(root)
+        root.addView(playerView, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
+        setContentView(ScrollView(this).apply { isFillViewport = true; addView(root) })
+    }
+
+    private fun sectionLabel(value: String) = TextView(this).apply {
+        text = value; textSize = 15f; setTypeface(null, android.graphics.Typeface.BOLD)
+        setTextColor(0xFFFFFFFF.toInt()); setPadding(0, 14, 0, 6)
+    }
+
+    private fun makeInput(hintText: String) = EditText(this).apply {
+        hint = hintText; setSingleLine(true)
+        inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_URI
+        setTextColor(0xFFFFFFFF.toInt()); setHintTextColor(0xFF9AA4B2.toInt())
+        setPadding(16, 12, 16, 12); textSize = 16f; minHeight = 58
+        gravity = Gravity.CENTER_VERTICAL; setBackgroundColor(0xFF252B34.toInt())
+    }
+
+    private fun searchArchive() {
+        val query = searchInput.text.toString().trim()
+        if (query.isBlank()) { statusView.text = "请先输入片名或关键词"; return }
+        resultsBox.removeAllViews()
+        statusView.text = "正在搜索公开影片，并检查视频文件…"
+        executor.execute {
+            try {
+                val playable = findPlayableArchiveItems(query)
+                runOnUiThread {
+                    resultsBox.removeAllViews()
+                    if (playable.isEmpty()) {
+                        statusView.text = "没有找到通过初步链接检测的影片。可换关键词，或直接输入视频链接。"
+                    } else {
+                        statusView.text = "找到 " + playable.size + " 个可尝试播放的公开影片，点击条目开始播放。"
+                        playable.forEach { item ->
+                            resultsBox.addView(Button(this).apply {
+                                text = item.first; isAllCaps = false
+                                setOnClickListener { urlInput.setText(item.second); playUrl() }
+                            }, matchWrap())
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                runOnUiThread { statusView.text = "搜索失败：网络连接异常或服务暂不可用。请稍后重试。" }
+            }
+        }
+    }
+
+    private fun findPlayableArchiveItems(query: String): List<Pair<String, String>> {
+        val q = "title:($query) AND mediatype:movies"
+        val encoded = URLEncoder.encode(q, "UTF-8")
+        val searchUrl = "https://archive.org/advancedsearch.php?q=$encoded&fl%5B%5D=identifier&fl%5B%5D=title&rows=10&page=1&output=json"
+        val docs = JSONObject(httpGet(searchUrl)).getJSONObject("response").getJSONArray("docs")
+        val found = mutableListOf<Pair<String, String>>()
+        for (i in 0 until docs.length()) {
+            if (found.size >= 6) break
+            val doc = docs.getJSONObject(i)
+            val identifier = doc.optString("identifier")
+            val title = doc.optString("title", identifier)
+            if (identifier.isBlank()) continue
+            try {
+                val metadata = JSONObject(httpGet("https://archive.org/metadata/$identifier"))
+                val files = metadata.optJSONArray("files") ?: continue
+                for (j in 0 until files.length()) {
+                    val file = files.optJSONObject(j) ?: continue
+                    val name = file.optString("name")
+                    val format = file.optString("format")
+                    if (!name.lowercase().endsWith(".mp4") &&
+                        !format.contains("MPEG4", true) && !format.contains("h.264", true)) continue
+                    if (name.isBlank() || name.contains("__ia_thumb")) continue
+                    val encodedName = name.split("/").joinToString("/") {
+                        URLEncoder.encode(it, "UTF-8").replace("+", "%20")
+                    }
+                    val videoUrl = "https://archive.org/download/$identifier/$encodedName"
+                    if (isUrlReachable(videoUrl)) { found.add(title to videoUrl); break }
+                }
+            } catch (_: Exception) { /* Skip unavailable records. */ }
+        }
+        return found
+    }
+
+    private fun httpGet(address: String): String {
+        val connection = URL(address).openConnection() as HttpURLConnection
+        connection.connectTimeout = 10000; connection.readTimeout = 12000
+        connection.setRequestProperty("User-Agent", "GOnlinePlayer/1.0")
+        return try { connection.inputStream.bufferedReader().use { it.readText() } }
+        finally { connection.disconnect() }
+    }
+
+    private fun isUrlReachable(address: String): Boolean {
+        val connection = URL(address).openConnection() as HttpURLConnection
+        connection.connectTimeout = 7000; connection.readTimeout = 7000
+        connection.instanceFollowRedirects = true
+        connection.requestMethod = "GET"
+        connection.setRequestProperty("Range", "bytes=0-0")
+        connection.setRequestProperty("User-Agent", "GOnlinePlayer/1.0")
+        return try { connection.responseCode in 200..299 } finally { connection.disconnect() }
     }
 
     private fun playUrl() {
         val raw = urlInput.text.toString().trim()
         val uri = runCatching { Uri.parse(raw) }.getOrNull()
         if (raw.isBlank() || uri == null || (uri.scheme != "https" && uri.scheme != "http") || uri.host.isNullOrBlank()) {
-            statusView.text = "地址无效：请输入完整的 http/https 视频直链"
-            return
+            statusView.text = "地址无效：请输入完整的 http/https 视频直链"; return
         }
-
         statusView.text = "正在连接视频源…"
         val exoPlayer = player ?: ExoPlayer.Builder(this).build().also { created ->
             created.addListener(object : Player.Listener {
                 override fun onPlaybackStateChanged(playbackState: Int) {
                     statusView.text = when (playbackState) {
                         Player.STATE_BUFFERING -> "正在缓冲…"
-                        Player.STATE_READY -> if (created.isPlaying) "正在播放" else "已就绪，按播放键开始"
+                        Player.STATE_READY -> if (created.isPlaying) "正在播放" else "已就绪"
                         Player.STATE_ENDED -> "播放结束"
                         Player.STATE_IDLE -> "播放器待机"
                         else -> statusView.text
                     }
                 }
-
                 override fun onPlayerError(error: PlaybackException) {
-                    statusView.text = "播放失败：视频地址不可用、格式不支持或服务器限制了访问"
+                    statusView.text = "播放失败：源可能失效、格式不支持或服务器有限制。可尝试其他结果。"
                 }
             })
-            player = created
-            playerView.player = created
+            player = created; playerView.player = created
         }
-
-        exoPlayer.setMediaItem(MediaItem.fromUri(uri))
-        exoPlayer.prepare()
-        exoPlayer.playWhenReady = true
+        exoPlayer.setMediaItem(MediaItem.fromUri(uri)); exoPlayer.prepare(); exoPlayer.playWhenReady = true
     }
 
     private fun matchWrap() = LinearLayout.LayoutParams(
-        ViewGroup.LayoutParams.MATCH_PARENT,
-        ViewGroup.LayoutParams.WRAP_CONTENT
+        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
     )
 
-    override fun onStop() {
-        super.onStop()
-        player?.pause()
-    }
+    override fun onStop() { super.onStop(); player?.pause() }
 
     override fun onDestroy() {
-        playerView.player = null
-        player?.release()
-        player = null
-        super.onDestroy()
+        playerView.player = null; player?.release(); player = null
+        executor.shutdownNow(); super.onDestroy()
     }
 }
