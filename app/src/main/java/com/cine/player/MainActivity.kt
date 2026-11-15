@@ -51,11 +51,14 @@ class MainActivity : AppCompatActivity() {
         urlInput = EditText(this).apply {
             hint = "粘贴视频直链（https://…）"
             setSingleLine(true)
-            inputType = android.text.InputType.TYPE_TEXT_VARIATION_URI
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_URI
             imeOptions = EditorInfo.IME_ACTION_GO
             setTextColor(0xFFFFFFFF.toInt())
             setHintTextColor(0xFF9AA4B2.toInt())
-            setPadding(12, 12, 12, 12)
+            setPadding(16, 14, 16, 14)
+            textSize = 16f
+            minHeight = 64
+            gravity = android.view.Gravity.CENTER_VERTICAL
             setBackgroundColor(0xFF252B34.toInt())
             setOnEditorActionListener { _, actionId, _ ->
                 if (actionId == EditorInfo.IME_ACTION_GO) {
@@ -64,7 +67,7 @@ class MainActivity : AppCompatActivity() {
                 } else false
             }
         }
-        root.addView(urlInput, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 54))
+        root.addView(urlInput, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 68))
 
         val playButton = Button(this).apply {
             text = "播放"
