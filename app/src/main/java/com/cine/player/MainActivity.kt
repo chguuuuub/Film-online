@@ -9,7 +9,6 @@ import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.view.setPadding
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
@@ -30,7 +29,7 @@ class MainActivity : AppCompatActivity() {
     private fun buildScreen() {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(20)
+            setPadding(20, 20, 20, 20)
             setBackgroundColor(0xFF101318.toInt())
         }
 
@@ -56,7 +55,7 @@ class MainActivity : AppCompatActivity() {
             imeOptions = EditorInfo.IME_ACTION_GO
             setTextColor(0xFFFFFFFF.toInt())
             setHintTextColor(0xFF9AA4B2.toInt())
-            setPadding(12)
+            setPadding(12, 12, 12, 12)
             setBackgroundColor(0xFF252B34.toInt())
             setOnEditorActionListener { _, actionId, _ ->
                 if (actionId == EditorInfo.IME_ACTION_GO) {
