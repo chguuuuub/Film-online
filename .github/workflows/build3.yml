@@ -41,9 +41,8 @@ jobs:
 
           echo "sdk.dir=$ANDROID_HOME" > local.properties
           
-          # 使用对插件高度稳定的 Gradle 8.4
-          gradle wrapper --gradle-version 8.4
-          chmod +x gradlew
+          # 使用不带警告的稳定编译通道
+          gradle init --type basic --dsl kotlin --unattended || true
           ./gradlew assembleDebug --no-daemon
 
       - name: 上传 APK
