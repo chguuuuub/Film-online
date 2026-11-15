@@ -24,11 +24,14 @@ jobs:
 
       - name: 生成 Gradle Wrapper
         run: |
+          cd Film-online
           gradle wrapper --gradle-version 8.7
           chmod +x gradlew
 
       - name: 编译 APK
-        run: ./gradlew assembleDebug --no-daemon
+        run: |
+          cd Film-online
+          ./gradlew assembleDebug --no-daemon
 
       - name: 上传 APK
         uses: actions/upload-artifact@v4
