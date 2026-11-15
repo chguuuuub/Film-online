@@ -1,0 +1,16 @@
+Cine4K-Player/
+├── .github/
+│   └── workflows/
+│       └── build-apk.yml          # GitHub 自动编译打包脚本
+├── app/
+│   ├── build.gradle.kts           # 依赖配置（使用上一条回复中的代码）
+│   └── src/
+│       └── main/
+│           ├── AndroidManifest.xml
+│           └── java/com/example/cine4k/
+│               ├── MainActivity.kt
+│               ├── MovieApi.kt
+│               └── PlayerScreen.kt
+├── build.gradle.kts               # 根目录 Gradle 配置
+├── settings.gradle.kts            # 项目模块配置
+└── gradle.properties              # Gradle 编译内存与 AndroidX 配置
