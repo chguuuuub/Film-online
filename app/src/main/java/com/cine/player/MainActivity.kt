@@ -57,6 +57,7 @@ class MainActivity : AppCompatActivity() {
 
         root.addView(sectionLabel("片名 / 关键词搜索"), matchWrap())
         searchInput = makeInput("输入电影名称或关键词")
+        searchInput.inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
         searchInput.imeOptions = EditorInfo.IME_ACTION_SEARCH
         root.addView(searchInput, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 58))
         root.addView(Button(this).apply {
@@ -89,7 +90,7 @@ class MainActivity : AppCompatActivity() {
             useController = true
             setShowBuffering(PlayerView.SHOW_BUFFERING_WHEN_PLAYING)
         }
-        root.addView(playerView, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
+        root.addView(playerView, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 260))
         setContentView(ScrollView(this).apply { isFillViewport = true; addView(root) })
     }
 
