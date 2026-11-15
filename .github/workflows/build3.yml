@@ -27,7 +27,7 @@ jobs:
           echo 'dependencyResolutionManagement { repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS); repositories { google(); mavenCentral() } }' >> settings.gradle.kts
           echo 'rootProject.name = "Cine4K"; include(":app")' >> settings.gradle.kts
 
-          echo 'plugins { id("com.android.application") version "8.2.0" apply false; id("org.jetbrains.kotlin.android") version "1.9.20" apply false }' > build.gradle.kts
+          echo 'plugins { id("com.android.application") version "8.1.4" apply false; id("org.jetbrains.kotlin.android") version "1.9.10" apply false }' > build.gradle.kts
 
           echo 'plugins { id("com.android.application"); id("org.jetbrains.kotlin.android") }' > app/build.gradle.kts
           echo 'android { namespace = "com.cine.player"; compileSdk = 34; defaultConfig { applicationId = "com.cine.player"; minSdk = 24; targetSdk = 34; versionCode = 1; versionName = "1.0" }; compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }; kotlinOptions { jvmTarget = "17" } }' >> app/build.gradle.kts
@@ -41,8 +41,8 @@ jobs:
 
           echo "sdk.dir=$ANDROID_HOME" > local.properties
           
-          # 使用与 Kotlin 1.9.20 完美兼容的 Gradle 8.5
-          gradle wrapper --gradle-version 8.5
+          # 使用对插件高度稳定的 Gradle 8.4
+          gradle wrapper --gradle-version 8.4
           chmod +x gradlew
           ./gradlew assembleDebug --no-daemon
 
