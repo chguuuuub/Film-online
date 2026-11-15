@@ -18,8 +18,9 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
+          cache: 'gradle'
 
-      - name: 自动初始化并编译 APK
+      - name: 生成标准 Android 项目结构
         run: |
           mkdir -p app/src/main/java/com/cine/player app/src/main
           
@@ -40,10 +41,11 @@ jobs:
           echo 'class MainActivity : AppCompatActivity() { override fun onCreate(savedInstanceState: Bundle?) { super.onCreate(savedInstanceState); val pv = PlayerView(this); setContentView(pv); ExoPlayer.Builder(this).build().also { pv.player = it } } }' >> app/src/main/java/com/cine/player/MainActivity.kt
 
           echo "sdk.dir=$ANDROID_HOME" > local.properties
-          
-          # 使用不带警告的稳定编译通道
-          gradle init --type basic --dsl kotlin --unattended || true
-          ./gradlew assembleDebug --no-daemon
+
+      - name: 编译打包 APK
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          arguments: assembleDebug --no-daemon
 
       - name: 上传 APK
         uses: actions/upload-artifact@v4
