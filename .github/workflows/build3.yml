@@ -19,124 +19,29 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: 云端自动生成标准 Android 项目结构
+      - name: 自动初始化并编译 APK
         run: |
-          # 如果仓库里没有 settings.gradle.kts，则云端自动初始化一个标准的 Jetpack Compose + Media3 项目
-          if [ ! -f "settings.gradle.kts" ]; then
-            echo "🛠️ 正在云端初始化标准项目..."
-            
-            # 创建根目录配置
-            cat << 'EOF' > settings.gradle.kts
-            pluginManagement {
-                repositories {
-                    google()
-                    mavenCentral()
-                    gradlePluginPortal()
-                }
-            }
-            dependencyResolutionManagement {
-                repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
-                repositories {
-                    google()
-                    mavenCentral()
-                }
-            }
-            rootProject.name = "Cine4K"
-            include(":app")
-            EOF
+          mkdir -p app/src/main/java/com/cine/player app/src/main
+          
+          echo 'pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }' > settings.gradle.kts
+          echo 'dependencyResolutionManagement { repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS); repositories { google(); mavenCentral() } }' >> settings.gradle.kts
+          echo 'rootProject.name = "Cine4K"; include(":app")' >> settings.gradle.kts
 
-            cat << 'EOF' > build.gradle.kts
-            plugins {
-                id("com.android.application") version "8.2.0" apply false
-                id("org.jetbrains.kotlin.android") version "1.9.0" apply false
-            }
-            EOF
+          echo 'plugins { id("com.android.application") version "8.2.0" apply false; id("org.jetbrains.kotlin.android") version "1.9.0" apply false }' > build.gradle.kts
 
-            # 创建 app 模块及基础代码
-            mkdir -p app/src/main/java/com/cine/player
-            
-            cat << 'EOF' > app/build.gradle.kts
-            plugins {
-                id("com.android.application")
-                id("org.jetbrains.kotlin.android")
-            }
-            android {
-                namespace = "com.cine.player"
-                compileSdk = 34
-                defaultConfig {
-                    applicationId = "com.cine.player"
-                    minSdk = 24
-                    targetSdk = 34
-                    versionCode = 1
-                    versionName = "1.0"
-                }
-                compileOptions {
-                    sourceCompatibility = JavaVersion.VERSION_17
-                    targetCompatibility = JavaVersion.VERSION_17
-                }
-                kotlinOptions {
-                    jvmTarget = "17"
-                }
-            }
-            dependencies {
-                implementation("androidx.core:core-ktx:1.12.0")
-                implementation("androidx.appcompat:appcompat:1.6.1")
-                implementation("androidx.media3:media3-exoplayer:1.2.0")
-                implementation("androidx.media3:media3-ui:1.2.0")
-            }
-            EOF
+          echo 'plugins { id("com.android.application"); id("org.jetbrains.kotlin.android") }' > app/build.gradle.kts
+          echo 'android { namespace = "com.cine.player"; compileSdk = 34; defaultConfig { applicationId = "com.cine.player"; minSdk = 24; targetSdk = 34; versionCode = 1; versionName = "1.0" }; compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }; kotlinOptions { jvmTarget = "17" } }' >> app/build.gradle.kts
+          echo 'dependencies { implementation("androidx.core:core-ktx:1.12.0"); implementation("androidx.appcompat:appcompat:1.6.1"); implementation("androidx.media3:media3-exoplayer:1.2.0"); implementation("androidx.media3:media3-ui:1.2.0") }' >> app/build.gradle.kts
 
-            cat << 'EOF' > app/src/main/AndroidManifest.xml
-            <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-                <uses-permission android:name="android.permission.INTERNET" />
-                <application
-                    android:allowBackup="true"
-                    android:label="Cine4K"
-                    android:theme="@style/Theme.AppCompat.Light.NoActionBar">
-                    <activity
-                        android:name=".MainActivity"
-                        android:exported="true">
-                        <intent-filter>
-                            <action android:name="android.intent.action.MAIN" />
-                            <category android:name="android.intent.category.LAUNCHER" />
-                        </intent-filter>
-                    </activity>
-                </application>
-            </manifest>
-            EOF
+          echo '<manifest xmlns:android="http://schemas.android.com/apk/res/android"><uses-permission android:name="android.permission.INTERNET"/><application android:allowBackup="true" android:label="Cine4K" android:theme="@style/Theme.AppCompat.Light.NoActionBar"><activity android:name=".MainActivity" android:exported="true"><intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter></activity></application></manifest>' > app/src/main/AndroidManifest.xml
 
-            cat << 'EOF' > app/src/main/java/com/cine/player/MainActivity.kt
-            package com.cine.player
-            import android.os.Bundle
-            import androidx.appcompat.app.AppCompatActivity
-            import androidx.media3.exoplayer.ExoPlayer
-            import androidx.media3.ui.PlayerView
-
-            class MainActivity : AppCompatActivity() {
-                private var player: ExoPlayer? = null
-                override fun onCreate(savedInstanceState: Bundle?) {
-                    super.onCreate(savedInstanceState)
-                    val playerView = PlayerView(this)
-                    setContentView(playerView)
-                    player = ExoPlayer.Builder(this).build().also {
-                        playerView.player = it
-                    }
-                }
-                override fun onDestroy() {
-                    super.onDestroy()
-                    player?.release()
-                }
-            }
-            EOF
-          fi
+          echo 'package com.cine.player' > app/src/main/java/com/cine/player/MainActivity.kt
+          echo 'import android.os.Bundle; import androidx.appcompat.app.AppCompatActivity; import androidx.media3.exoplayer.ExoPlayer; import androidx.media3.ui.PlayerView' >> app/src/main/java/com/cine/player/MainActivity.kt
+          echo 'class MainActivity : AppCompatActivity() { override fun onCreate(savedInstanceState: Bundle?) { super.onCreate(savedInstanceState); val pv = PlayerView(this); setContentView(pv); ExoPlayer.Builder(this).build().also { pv.player = it } } }' >> app/src/main/java/com/cine/player/MainActivity.kt
 
           echo "sdk.dir=$ANDROID_HOME" > local.properties
-          
-          if [ ! -f "gradlew" ]; then
-            gradle wrapper --gradle-version 8.7
-          fi
+          gradle wrapper --gradle-version 8.7
           chmod +x gradlew
-          
           ./gradlew assembleDebug --no-daemon
 
       - name: 上传 APK
