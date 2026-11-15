@@ -19,25 +19,28 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: 自动定位项目目录并编译
+      - name: 编译并打包 APK
         run: |
-          echo "=== 当前仓库文件结构 ==="
-          find . -maxdepth 3 -not -path '*/.*'
-          
-          # 自动查找包含 settings.gradle 或 settings.gradle.kts 的目录
-          PROJECT_DIR=$(find . -maxdepth 3 \( -name "settings.gradle" -o -name "settings.gradle.kts" \) -exec dirname {} \; | head -n 1)
+          # 排除 .github 目录，精准寻找含有 settings.gradle 的真正项目根目录
+          PROJECT_DIR=$(find . -maxdepth 3 -not -path '*/.*' \( -name "settings.gradle" -o -name "settings.gradle.kts" \) -exec dirname {} \; | head -n 1)
           
           if [ -z "$PROJECT_DIR" ]; then
-            echo "❌ 错误：整个仓库中都没有找到 settings.gradle 或 settings.gradle.kts 文件！"
+            echo "❌ 未找到 settings.gradle，打印当前目录结构："
+            find . -maxdepth 2
             exit 1
           fi
           
-          echo "✅ 找到项目根目录: $PROJECT_DIR"
+          echo "✅ 锁定真实项目目录: $PROJECT_DIR"
           cd "$PROJECT_DIR"
           
           echo "sdk.dir=$ANDROID_HOME" > local.properties
-          gradle wrapper --gradle-version 8.7
+          
+          # 如果没有 gradlew 就自动生成
+          if [ ! -f "gradlew" ]; then
+            gradle wrapper --gradle-version 8.7
+          fi
           chmod +x gradlew
+          
           ./gradlew assembleDebug --no-daemon
 
       - name: 上传 APK
