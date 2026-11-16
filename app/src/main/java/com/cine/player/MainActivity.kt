@@ -27,6 +27,7 @@ import java.net.HttpURLConnection
 import java.net.URLEncoder
 import java.net.URL
 import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 
 class MainActivity : AppCompatActivity() {
     private var player: ExoPlayer? = null
@@ -211,39 +212,49 @@ class MainActivity : AppCompatActivity() {
     private fun findPlayableArchiveItems(query: String): List<Pair<String, String>> {
         val q = "title:($query) AND mediatype:movies"
         val encoded = URLEncoder.encode(q, "UTF-8")
-        val searchUrl = "https://archive.org/advancedsearch.php?q=$encoded&fl%5B%5D=identifier&fl%5B%5D=title&rows=10&page=1&output=json"
+        val searchUrl = "https://archive.org/advancedsearch.php?q=$encoded&fl%5B%5D=identifier&fl%5B%5D=title&rows=8&page=1&output=json"
         val docs = JSONObject(httpGet(searchUrl)).getJSONObject("response").getJSONArray("docs")
-        val found = mutableListOf<Pair<String, String>>()
-        for (i in 0 until docs.length()) {
-            if (found.size >= 6) break
-            val doc = docs.getJSONObject(i)
-            val identifier = doc.optString("identifier")
-            val title = doc.optString("title", identifier)
-            if (identifier.isBlank()) continue
-            try {
-                val metadata = JSONObject(httpGet("https://archive.org/metadata/$identifier"))
-                val files = metadata.optJSONArray("files") ?: continue
-                for (j in 0 until files.length()) {
-                    val file = files.optJSONObject(j) ?: continue
-                    val name = file.optString("name")
-                    val format = file.optString("format")
-                    if (!name.lowercase().endsWith(".mp4") &&
-                        !format.contains("MPEG4", true) && !format.contains("h.264", true)) continue
-                    if (name.isBlank() || name.contains("__ia_thumb")) continue
-                    val encodedName = name.split("/").joinToString("/") {
-                        URLEncoder.encode(it, "UTF-8").replace("+", "%20")
-                    }
-                    val videoUrl = "https://archive.org/download/$identifier/$encodedName"
-                    if (isUrlReachable(videoUrl)) { found.add(title to videoUrl); break }
+        val pool = Executors.newFixedThreadPool(5)
+        try {
+            val tasks = (0 until minOf(docs.length(), 8)).map { index ->
+                java.util.concurrent.Callable {
+                    val doc = docs.getJSONObject(index)
+                    val identifier = doc.optString("identifier")
+                    val title = doc.optString("title", identifier)
+                    if (identifier.isBlank()) return@Callable null
+                    try {
+                        val metadata = JSONObject(httpGet("https://archive.org/metadata/$identifier"))
+                        val files = metadata.optJSONArray("files") ?: return@Callable null
+                        var playableUrl: String? = null
+                        for (j in 0 until files.length()) {
+                            val file = files.optJSONObject(j) ?: continue
+                            val name = file.optString("name")
+                            val format = file.optString("format")
+                            if (name.isBlank() || name.contains("__ia_thumb")) continue
+                            if (!name.lowercase().endsWith(".mp4") &&
+                                !format.contains("MPEG4", true) && !format.contains("h.264", true)) continue
+                            val encodedName = name.split("/").joinToString("/") {
+                                URLEncoder.encode(it, "UTF-8").replace("+", "%20")
+                            }
+                            playableUrl = "https://archive.org/download/$identifier/$encodedName"
+                            break
+                        }
+                        if (playableUrl != null) title to playableUrl!! else null
+                    } catch (_: Exception) { null }
                 }
-            } catch (_: Exception) { /* Skip unavailable records. */ }
+            }
+            // Fetch metadata concurrently; don't wait for slow per-file range probes.
+            return pool.invokeAll(tasks, 12, TimeUnit.SECONDS)
+                .mapNotNull { future -> if (future.isCancelled) null else runCatching { future.get() }.getOrNull() }
+                .take(6)
+        } finally {
+            pool.shutdownNow()
         }
-        return found
     }
 
     private fun httpGet(address: String): String {
         val connection = URL(address).openConnection() as HttpURLConnection
-        connection.connectTimeout = 10000; connection.readTimeout = 12000
+        connection.connectTimeout = 6000; connection.readTimeout = 7000
         connection.setRequestProperty("User-Agent", "GOnlinePlayer/1.0")
         return try { connection.inputStream.bufferedReader().use { it.readText() } }
         finally { connection.disconnect() }
