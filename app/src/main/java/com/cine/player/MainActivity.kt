@@ -15,11 +15,13 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
+import androidx.media3.ui.TrackSelectionDialogBuilder
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URLEncoder
@@ -112,7 +114,9 @@ class MainActivity : AppCompatActivity() {
         urlInput.setOnEditorActionListener { _, actionId, _ ->
             if (actionId == EditorInfo.IME_ACTION_GO) { playUrl(); true } else false
         }
-        root.addView(urlInput, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 62).apply {
+        urlInput.textSize = 20f
+        urlInput.minHeight = dp(70)
+        root.addView(urlInput, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(72)).apply {
             topMargin = dp(6)
             bottomMargin = dp(8)
         })
@@ -129,6 +133,14 @@ class MainActivity : AppCompatActivity() {
             useController = true
             setShowBuffering(PlayerView.SHOW_BUFFERING_WHEN_PLAYING)
         }
+        root.addView(Button(this).apply {
+            text = "选择播放分辨率"
+            textSize = 16f
+            setOnClickListener { showResolutionSelector() }
+        }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(48)).apply {
+            topMargin = dp(6)
+            bottomMargin = dp(4)
+        })
         root.addView(Button(this).apply {
             text = "⛶  全屏播放"
             textSize = 16f
@@ -169,7 +181,21 @@ class MainActivity : AppCompatActivity() {
                         statusView.text = "没有找到通过初步链接检测的影片。可换关键词，或直接输入视频链接。"
                     } else {
                         val titles = playable.map { it.first }
-                        searchInput.setAdapter(ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, titles))
+                        val dropdownAdapter = object : ArrayAdapter<String>(this, android.R.layout.simple_dropdown_item_1line, titles) {
+                            override fun getView(position: Int, convertView: android.view.View?, parent: ViewGroup): android.view.View {
+                                val item = (convertView as? TextView) ?: TextView(this@MainActivity)
+                                item.text = getItem(position)
+                                item.textSize = 18f
+                                item.setTextColor(0xFF17202A.toInt())
+                                item.setPadding(dp(18), dp(14), dp(18), dp(14))
+                                item.minHeight = dp(54)
+                                item.gravity = Gravity.CENTER_VERTICAL
+                                item.setBackgroundColor(0xFFF4F6F8.toInt())
+                                return item
+                            }
+                        }
+                        searchInput.setDropDownBackgroundDrawable(android.graphics.drawable.ColorDrawable(0xFFF4F6F8.toInt()))
+                        searchInput.setAdapter(dropdownAdapter)
                         searchInput.setText(query, false)
                         statusView.text = "找到 " + playable.size + " 个可尝试播放的公开影片，点开输入框下方列表即可播放。"
                         searchInput.requestFocus()
@@ -258,6 +284,17 @@ class MainActivity : AppCompatActivity() {
             player = created; playerView.player = created
         }
         exoPlayer.setMediaItem(MediaItem.fromUri(uri)); exoPlayer.prepare(); exoPlayer.playWhenReady = true
+    }
+
+    private fun showResolutionSelector() {
+        val activePlayer = player
+        if (activePlayer == null) {
+            statusView.text = "请先播放视频，再选择分辨率。"
+            return
+        }
+        TrackSelectionDialogBuilder(this, "选择视频分辨率", activePlayer, C.TRACK_TYPE_VIDEO)
+            .build()
+            .show()
     }
 
     private fun showFullscreenPlayer() {
