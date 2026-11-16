@@ -3,6 +3,8 @@ package com.cine.player
 import android.net.Uri
 import android.os.Bundle
 import android.view.Gravity
+import android.app.Dialog
+import android.view.WindowManager
 import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
 import android.widget.ArrayAdapter
@@ -65,10 +67,10 @@ class MainActivity : AppCompatActivity() {
             inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
             imeOptions = EditorInfo.IME_ACTION_SEARCH
             threshold = 1
-            textSize = 16f
-            minHeight = 58
+            textSize = 22f
+            minHeight = dp(68)
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(16, 12, 16, 12)
+            setPadding(dp(18), dp(14), dp(18), dp(14))
             setTextColor(0xFFFFFFFF.toInt())
             setHintTextColor(0xFF9AA4B2.toInt())
             setBackgroundColor(0xFF252B34.toInt())
@@ -87,7 +89,7 @@ class MainActivity : AppCompatActivity() {
                 if (actionId == EditorInfo.IME_ACTION_SEARCH) { searchArchive(); true } else false
             }
         }
-        root.addView(searchInput, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 60).apply {
+        root.addView(searchInput, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(70)).apply {
             topMargin = dp(4)
             bottomMargin = dp(8)
         })
@@ -127,7 +129,15 @@ class MainActivity : AppCompatActivity() {
             useController = true
             setShowBuffering(PlayerView.SHOW_BUFFERING_WHEN_PLAYING)
         }
-        root.addView(playerView, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 260))
+        root.addView(Button(this).apply {
+            text = "⛶  全屏播放"
+            textSize = 16f
+            setOnClickListener { showFullscreenPlayer() }
+        }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(48)).apply {
+            topMargin = dp(6)
+            bottomMargin = dp(8)
+        })
+        root.addView(playerView, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(240)))
         setContentView(ScrollView(this).apply { isFillViewport = true; addView(root) })
     }
 
@@ -248,6 +258,29 @@ class MainActivity : AppCompatActivity() {
             player = created; playerView.player = created
         }
         exoPlayer.setMediaItem(MediaItem.fromUri(uri)); exoPlayer.prepare(); exoPlayer.playWhenReady = true
+    }
+
+    private fun showFullscreenPlayer() {
+        val activePlayer = player
+        if (activePlayer == null) {
+            statusView.text = "请先播放视频，再进入全屏。"
+            return
+        }
+        val dialog = Dialog(this, android.R.style.Theme_Black_NoTitleBar_Fullscreen)
+        val fullPlayerView = PlayerView(this).apply {
+            useController = true
+            setShowBuffering(PlayerView.SHOW_BUFFERING_WHEN_PLAYING)
+            player = activePlayer
+            setBackgroundColor(0xFF000000.toInt())
+        }
+        dialog.setContentView(fullPlayerView)
+        dialog.setOnDismissListener {
+            fullPlayerView.player = null
+            playerView.player = activePlayer
+        }
+        dialog.show()
+        dialog.window?.setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT)
+        dialog.window?.setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN)
     }
 
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
